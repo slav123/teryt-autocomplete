@@ -2,10 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
-
 	"time"
 )
 
@@ -23,53 +21,10 @@ func streetsHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Set CORS headers
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
 
 	// Get query parameter
 	query := r.URL.Query().Get("q")
-
-	// Default limit
-	limit := 10
-
-	// Search
-	results := service.SearchStreets(query, limit)
-
-	// Check if this is an HTMX request
-	isHTMX := r.Header.Get("HX-Request") == "true"
-
-	if isHTMX {
-		// Return HTML fragment for HTMX
-		w.Header().Set("Content-Type", "text/html")
-
-		if query == "" || len(results) == 0 {
-			if query == "" {
-				fmt.Fprint(w, `<div class="empty-state">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-					</svg>
-					<p>Wpisz co najmniej 2 znaki</p>
-				</div>`)
-			} else {
-				fmt.Fprint(w, `<div class="no-results">Nie znaleziono wyników</div>`)
-			}
-			return
-		}
-
-		// Render results as HTML
-		fmt.Fprintf(w, `<div class="results-info">Znaleziono %d wyników w %s</div>`, len(results), time.Since(startTime).String())
-		fmt.Fprint(w, `<ul class="results-list">`)
-		for _, result := range results {
-			fmt.Fprintf(w, `<li class="result-item">
-				<div class="result-name">%s</div>
-			</li>`,
-				result.FullName)
-		}
-		fmt.Fprint(w, `</ul>`)
-		return
-	}
-
-	// Return JSON for regular API requests
-	w.Header().Set("Content-Type", "application/json")
-
 	if query == "" {
 		json.NewEncoder(w).Encode(AutocompleteResponse{
 			Query:   "",
@@ -79,6 +34,12 @@ func streetsHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
+	// Default limit
+	limit := 10
+
+	// Search
+	results := service.SearchStreets(query, limit)
 
 	// Build response
 	response := AutocompleteResponse{
@@ -96,6 +57,7 @@ func citiesHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Set CORS headers
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
 
 	// Get query parameter
 	query := r.URL.Query().Get("q")
@@ -110,53 +72,6 @@ func citiesHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Search with filters
 	results := service.SearchCities(query, woj, pow, gmi, limit)
-
-	// Check if this is an HTMX request
-	isHTMX := r.Header.Get("HX-Request") == "true"
-
-	if isHTMX {
-		// Return HTML fragment for HTMX
-		w.Header().Set("Content-Type", "text/html")
-
-		if query == "" || len(results) == 0 {
-			if query == "" {
-				fmt.Fprint(w, `<div class="empty-state">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-					</svg>
-					<p>Wpisz co najmniej 2 znaki</p>
-				</div>`)
-			} else {
-				fmt.Fprint(w, `<div class="no-results">Nie znaleziono wyników</div>`)
-			}
-			return
-		}
-
-		// Deduplicate by city name for display
-		seen := make(map[string]bool)
-		uniqueResults := []CityRecord{}
-		for _, result := range results {
-			if !seen[result.NAZWA] {
-				uniqueResults = append(uniqueResults, result)
-				seen[result.NAZWA] = true
-			}
-		}
-
-		// Render results as HTML
-		fmt.Fprintf(w, `<div class="results-info">Znaleziono %d wyników w %s</div>`, len(uniqueResults), time.Since(startTime).String())
-		fmt.Fprint(w, `<ul class="results-list">`)
-		for _, result := range uniqueResults {
-			fmt.Fprintf(w, `<li class="result-item">
-				<div class="result-name">%s</div>
-			</li>`,
-				result.NAZWA)
-		}
-		fmt.Fprint(w, `</ul>`)
-		return
-	}
-
-	// Return JSON for regular API requests
-	w.Header().Set("Content-Type", "application/json")
 
 	// Build filters map for response
 	filters := make(map[string]int)

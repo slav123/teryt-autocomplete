@@ -17,13 +17,3 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Write(data)
 }
-
-func demoHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html")
-	data, err := content.ReadFile("static/demo.html")
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-	w.Write(data)
-}

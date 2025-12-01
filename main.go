@@ -86,11 +86,10 @@ func (s *AutocompleteService) SearchCities(query string, woj, pow, gmi int, limi
 		matchesQuery := query == "" || strings.HasPrefix(nazwaLower, query) || strings.Contains(nazwaLower, query)
 
 		if matchesQuery {
-			// Deduplicate by name + administrative codes
-			key := fmt.Sprintf("%s-%d-%d-%d", city.NAZWA, city.WOJ, city.POW, city.GMI)
-			if !seen[key] {
+			// Deduplicate by name only
+			if !seen[city.NAZWA] {
 				results = append(results, city)
-				seen[key] = true
+				seen[city.NAZWA] = true
 			}
 		}
 	}
@@ -264,7 +263,6 @@ func main() {
 	http.HandleFunc("/streets/gmi", streetGMIHandler)
 	http.HandleFunc("/cities", citiesHandler)
 	http.HandleFunc("/health", healthHandler)
-	http.HandleFunc("/demo", demoHandler)
 	http.HandleFunc("/", rootHandler)
 
 	// Start server

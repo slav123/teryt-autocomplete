@@ -1,99 +1,345 @@
 <!DOCTYPE html>
-<html>
+<html lang="pl">
 <head>
-    <title>Street Autocomplete API</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TERYT Autocomplete Demo</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
-        h1 { color: #333; }
-        .endpoint { background: #f4f4f4; padding: 10px; margin: 10px 0; border-radius: 5px; }
-        code { background: #e0e0e0; padding: 2px 5px; border-radius: 3px; }
-        input { padding: 10px; width: 300px; font-size: 16px; }
-        #results { margin-top: 20px; }
-        .result { padding: 8px; margin: 5px 0; background: #f9f9f9; border-left: 3px solid #4CAF50; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .search-section {
+            padding: 30px;
+        }
+
+        .search-box {
+            margin-bottom: 40px;
+        }
+
+        .search-box h2 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-box h2::before {
+            content: "🔍";
+            margin-right: 8px;
+        }
+
+        .search-input {
+            position: relative;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        input[type="text"]:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        input[type="text"].loading {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 50 50'%3E%3Cpath fill='%23667eea' d='M25,5A20.14,20.14,0,0,1,45,22.88a2.51,2.51,0,0,0,2.49,2.26h0A2.52,2.52,0,0,0,50,22.33a25.14,25.14,0,0,0-50,0,2.52,2.52,0,0,0,2.5,2.81h0A2.51,2.51,0,0,0,5,22.88,20.14,20.14,0,0,1,25,5Z'%3E%3CanimateTransform attributeName='transform' type='rotate' from='0 25 25' to='360 25 25' dur='0.6s' repeatCount='indefinite'/%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            background-size: 20px;
+        }
+
+        .results {
+            margin-top: 15px;
+        }
+
+        .results-info {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .results-list {
+            list-style: none;
+        }
+
+        .result-item {
+            padding: 12px 15px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .result-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+            border-left-color: #764ba2;
+        }
+
+        .result-name {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 30px;
+            color: #999;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 15px;
+            opacity: 0.3;
+        }
+
+        .divider {
+            height: 1px;
+            background: linear-gradient(to right, transparent, #e0e0e0, transparent);
+            margin: 20px 0;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
-    <h1>Polish Street Autocomplete API</h1>
-    <p><a href="/demo" style="display: inline-block; padding: 10px 20px; background: #4CAF50; color: white; text-decoration: none; border-radius: 5px; margin-bottom: 20px;">Try HTMX Demo</a></p>
-    <p>Try the autocomplete:</p>
-    <input type="text" id="search" placeholder="Type street name..." onkeyup="search()">
-    <div id="results"></div>
+    <div class="container">
+        <div class="header">
+            <h1>🇵🇱 TERYT Autocomplete</h1>
+            <p>Polish Address Search Demo</p>
+        </div>
 
-    <p>Try the city autocomplete:</p>
-    <input type="text" id="searchCity" placeholder="Type city name..." onkeyup="searchCities()">
-    <div id="city-results"></div>
+        <div class="search-section">
+            <!-- Street Search -->
+            <div class="search-box">
+                <h2>Wyszukaj ulicę</h2>
+                <div class="search-input">
+                    <input
+                        type="text"
+                        id="street-search"
+                        placeholder="Wpisz nazwę ulicy, np. Chopina..."
+                        autocomplete="off"
+                    >
+                </div>
+                <div id="street-results" class="results">
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        <p>Zacznij wpisywać, aby wyszukać ulice</p>
+                    </div>
+                </div>
+            </div>
 
-    <h2>API Endpoints</h2>
-    <div class="endpoint">
-        <strong>GET /streets?q={query}</strong><br>
-        Search for streets by name<br>
-        Example: <a href="/streets?q=Chopina">/streets?q=Chopina</a>
-    </div>
-    <div class="endpoint">
-        <strong>GET /streets/gmi?name={exact_street_name}</strong><br>
-        Get list of GMI codes where an exact street name exists<br>
-        Example: <a href="/streets/gmi?name=Sportowa">/streets/gmi?name=Sportowa</a>
-    </div>
-    <div class="endpoint">
-        <strong>GET /cities?q={query}&woj={woj}&pow={pow}&gmi={gmi}</strong><br>
-        Search for cities by name with optional filters<br>
-        Examples:<br>
-        - <a href="/cities?q=Warszawa">/cities?q=Warszawa</a><br>
-        - <a href="/cities?q=Krak&woj=12">/cities?q=Krak&woj=12</a> (filter by województwo)<br>
-        - <a href="/cities?woj=14&pow=32">/cities?woj=14&pow=32</a> (all cities in powiat)
-    </div>
-    <div class="endpoint">
-        <strong>GET /health</strong><br>
-        Example: <a href="/health">/health</a>
+            <div class="divider"></div>
+
+            <!-- City Search -->
+            <div class="search-box">
+                <h2>Wyszukaj miejscowość</h2>
+                <div class="search-input">
+                    <input
+                        type="text"
+                        id="city-search"
+                        placeholder="Wpisz nazwę miejscowości, np. Warszawa..."
+                        autocomplete="off"
+                    >
+                </div>
+                <div id="city-results" class="results">
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        <p>Zacznij wpisywać, aby wyszukać miejscowości</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Pure JavaScript Demo |
+            <a href="/">Classic Demo</a> |
+            <a href="/health">API Health</a>
+        </div>
     </div>
 
     <script>
-        let timeout = null;
-        function search() {
-            clearTimeout(timeout);
-            const query = document.getElementById('search').value;
+        // Street search functionality
+        let streetTimeout = null;
+        const streetInput = document.getElementById('street-search');
+        const streetResults = document.getElementById('street-results');
+
+        streetInput.addEventListener('input', function() {
+            clearTimeout(streetTimeout);
+            const query = this.value.trim();
 
             if (query.length < 2) {
-                document.getElementById('results').innerHTML = '';
+                streetResults.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        <p>Wpisz co najmniej 2 znaki</p>
+                    </div>
+                `;
+                streetInput.classList.remove('loading');
                 return;
             }
 
-            timeout = setTimeout(() => {
+            streetInput.classList.add('loading');
+
+            streetTimeout = setTimeout(() => {
                 fetch('/streets?q=' + encodeURIComponent(query))
-                    .then(r => r.json())
+                    .then(response => response.json())
                     .then(data => {
-                        const html = data.results.map(r =>
-                            '<div class="result">' + r.full_name + '</div>'
-                        ).join('');
-                        document.getElementById('results').innerHTML =
-                            '<p>Found ' + data.count + ' results in ' + data.time + '</p>' + html;
-                    });
-            }, 200);
-        }
+                        streetInput.classList.remove('loading');
 
+                        if (data.count === 0) {
+                            streetResults.innerHTML = '<div class="no-results">Nie znaleziono wyników</div>';
+                            return;
+                        }
+
+                        let html = `<div class="results-info">Znaleziono ${data.count} wyników w ${data.time}</div>`;
+                        html += '<ul class="results-list">';
+                        data.results.forEach(result => {
+                            html += `<li class="result-item">
+                                <div class="result-name">${result.full_name}</div>
+                            </li>`;
+                        });
+                        html += '</ul>';
+                        streetResults.innerHTML = html;
+                    })
+                    .catch(error => {
+                        streetInput.classList.remove('loading');
+                        streetResults.innerHTML = '<div class="no-results">Błąd wyszukiwania</div>';
+                    });
+            }, 300);
+        });
+
+        // City search functionality
         let cityTimeout = null;
-        function searchCities() {
+        const cityInput = document.getElementById('city-search');
+        const cityResults = document.getElementById('city-results');
+
+        cityInput.addEventListener('input', function() {
             clearTimeout(cityTimeout);
-            const query = document.getElementById('searchCity').value;
+            const query = this.value.trim();
 
             if (query.length < 2) {
-                document.getElementById('city-results').innerHTML = '';
+                cityResults.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        <p>Wpisz co najmniej 2 znaki</p>
+                    </div>
+                `;
+                cityInput.classList.remove('loading');
                 return;
             }
+
+            cityInput.classList.add('loading');
 
             cityTimeout = setTimeout(() => {
                 fetch('/cities?q=' + encodeURIComponent(query))
-                    .then(r => r.json())
+                    .then(response => response.json())
                     .then(data => {
+                        cityInput.classList.remove('loading');
+
+                        if (data.count === 0) {
+                            cityResults.innerHTML = '<div class="no-results">Nie znaleziono wyników</div>';
+                            return;
+                        }
+
+                        // Deduplicate by city name
                         const uniqueNames = [...new Set(data.results.map(r => r.nazwa))];
-                        const html = uniqueNames.map(name =>
-                            '<div class="result">' + name + '</div>'
-                        ).join('');
-                        document.getElementById('city-results').innerHTML =
-                            '<p>Found ' + data.count + ' results in ' + data.time + '</p>' + html;
+
+                        let html = `<div class="results-info">Znaleziono ${uniqueNames.length} wyników w ${data.time}</div>`;
+                        html += '<ul class="results-list">';
+                        uniqueNames.forEach(name => {
+                            html += `<li class="result-item">
+                                <div class="result-name">${name}</div>
+                            </li>`;
+                        });
+                        html += '</ul>';
+                        cityResults.innerHTML = html;
+                    })
+                    .catch(error => {
+                        cityInput.classList.remove('loading');
+                        cityResults.innerHTML = '<div class="no-results">Błąd wyszukiwania</div>';
                     });
-            }, 200);
-        }
+            }, 300);
+        });
     </script>
 </body>
 </html>

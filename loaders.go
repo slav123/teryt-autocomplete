@@ -41,12 +41,12 @@ func (s *AutocompleteService) LoadCSV(filename string) error {
 
 	// Use manual line-by-line parsing due to CSV data quality issues
 	// The file has unescaped quotes that confuse the standard CSV reader
-	scanner := strings.NewReader("")
+
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
 	}
-	scanner = strings.NewReader(string(data))
+	scanner := strings.NewReader(string(data))
 
 	s.streets = make([]StreetRecord, 0, 300000)
 	lineNum := 0
