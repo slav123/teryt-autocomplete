@@ -1,13 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
+
 	"sort"
-	"strconv"
+
 	"strings"
 	"sync"
 	"time"
@@ -52,190 +51,6 @@ func NewAutocompleteService() *AutocompleteService {
 	return &AutocompleteService{
 		streets: make([]StreetRecord, 0),
 		cities:  make([]CityRecord, 0),
-	}
-}
-
-// LoadCSV loads the street data from CSV file into memory
-func (s *AutocompleteService) LoadCSV(filename string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	file, err := os.Open(filename)
-	if err != nil {
-		return fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
-
-	// Use manual line-by-line parsing due to CSV data quality issues
-	// The file has unescaped quotes that confuse the standard CSV reader
-	scanner := strings.NewReader("")
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
-	}
-	scanner = strings.NewReader(string(data))
-
-	s.streets = make([]StreetRecord, 0, 300000)
-	lineNum := 0
-	skipped := 0
-
-	// Skip header line
-	_, _ = readLine(scanner)
-	lineNum++
-
-	for {
-		line, err := readLine(scanner)
-		if err != nil {
-			break
-		}
-		lineNum++
-
-		// Split by semicolon
-		fields := strings.Split(line, ";")
-
-		// Validate record has exactly 10 fields
-		if len(fields) != 10 {
-			skipped++
-			continue
-		}
-
-		// Clean up fields by removing any quotes
-		for i := range fields {
-			fields[i] = strings.Trim(strings.TrimSpace(fields[i]), "\"")
-		}
-
-		// Validate essential fields are not empty
-		if fields[7] == "" { // NAZWA_1 must not be empty
-			skipped++
-			continue
-		}
-
-		// Parse integer fields
-		woj, _ := strconv.Atoi(fields[0])
-		pow, _ := strconv.Atoi(fields[1])
-		gmi, _ := strconv.Atoi(fields[2])
-		rodzgmi, _ := strconv.Atoi(fields[3])
-		sym, _ := strconv.Atoi(fields[4])
-		symul, _ := strconv.Atoi(fields[5])
-
-		street := StreetRecord{
-			WOJ:     woj,
-			POW:     pow,
-			GMI:     gmi,
-			RODZGMI: rodzgmi,
-			SYM:     sym,
-			SYMUL:   symul,
-			CECHA:   fields[6],
-			NAZWA1:  fields[7],
-			NAZWA2:  fields[8],
-		}
-
-		// Build full name for display
-		if street.NAZWA2 != "" {
-			street.FullName = fmt.Sprintf("%s %s %s", street.CECHA, street.NAZWA1, street.NAZWA2)
-		} else {
-			street.FullName = fmt.Sprintf("%s %s", street.CECHA, street.NAZWA1)
-		}
-
-		s.streets = append(s.streets, street)
-	}
-
-	log.Printf("Loaded %d street records from %s (skipped %d malformed records)", len(s.streets), filename, skipped)
-	return nil
-}
-
-// LoadCitiesCSV loads the city/locality data from SIMC CSV file into memory
-func (s *AutocompleteService) LoadCitiesCSV(filename string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
-	}
-	scanner := strings.NewReader(string(data))
-
-	s.cities = make([]CityRecord, 0, 100000)
-	lineNum := 0
-	skipped := 0
-
-	// Skip header line
-	_, _ = readLine(scanner)
-	lineNum++
-
-	for {
-		line, err := readLine(scanner)
-		if err != nil {
-			break
-		}
-		lineNum++
-
-		// Split by semicolon
-		fields := strings.Split(line, ";")
-
-		// Validate record has exactly 10 fields
-		if len(fields) != 10 {
-			skipped++
-			continue
-		}
-
-		// Clean up fields by removing any quotes
-		for i := range fields {
-			fields[i] = strings.Trim(strings.TrimSpace(fields[i]), "\"")
-		}
-
-		// Validate essential fields are not empty
-		if fields[6] == "" { // NAZWA must not be empty
-			skipped++
-			continue
-		}
-
-		// Parse integer fields
-		woj, _ := strconv.Atoi(fields[0])
-		pow, _ := strconv.Atoi(fields[1])
-		gmi, _ := strconv.Atoi(fields[2])
-		rodzgmi, _ := strconv.Atoi(fields[3])
-		rm, _ := strconv.Atoi(fields[4])
-		mz, _ := strconv.Atoi(fields[5])
-		sym, _ := strconv.Atoi(fields[7])
-		sympod, _ := strconv.Atoi(fields[8])
-
-		city := CityRecord{
-			WOJ:     woj,
-			POW:     pow,
-			GMI:     gmi,
-			RODZGMI: rodzgmi,
-			RM:      rm,
-			MZ:      mz,
-			NAZWA:   fields[6],
-			SYM:     sym,
-			SYMPOD:  sympod,
-		}
-
-		s.cities = append(s.cities, city)
-	}
-
-	log.Printf("Loaded %d city records from %s (skipped %d malformed records)", len(s.cities), filename, skipped)
-	return nil
-}
-
-// readLine reads a single line from a strings.Reader
-func readLine(r *strings.Reader) (string, error) {
-	var line strings.Builder
-	for {
-		b, err := r.ReadByte()
-		if err != nil {
-			if line.Len() > 0 {
-				return line.String(), nil
-			}
-			return "", err
-		}
-		if b == '\n' {
-			return line.String(), nil
-		}
-		if b != '\r' { // Skip carriage return
-			line.WriteByte(b)
-		}
 	}
 }
 
@@ -352,8 +167,8 @@ func (s *AutocompleteService) GetGMIForStreet(streetName string) []map[string]in
 	return results
 }
 
-// Search performs autocomplete search on NAZWA_1 (street name)
-func (s *AutocompleteService) Search(query string, limit int) []StreetRecord {
+// SearchStreets performs autocomplete search on NAZWA_1 (street name)
+func (s *AutocompleteService) SearchStreets(query string, limit int) []StreetRecord {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -413,11 +228,11 @@ type AutocompleteResponse struct {
 
 // CityAutocompleteResponse is the JSON response structure for cities
 type CityAutocompleteResponse struct {
-	Query   string       `json:"query"`
+	Query   string         `json:"query"`
 	Filters map[string]int `json:"filters,omitempty"`
-	Results []CityRecord `json:"results"`
-	Count   int          `json:"count"`
-	Time    string       `json:"time"`
+	Results []CityRecord   `json:"results"`
+	Count   int            `json:"count"`
+	Time    string         `json:"time"`
 }
 
 var service *AutocompleteService
@@ -445,7 +260,7 @@ func main() {
 	log.Printf("Cities loaded in %v", time.Since(startTime))
 
 	// Setup HTTP routes
-	http.HandleFunc("/streets", autocompleteHandler)
+	http.HandleFunc("/streets", streetsHandler)
 	http.HandleFunc("/streets/gmi", streetGMIHandler)
 	http.HandleFunc("/cities", citiesHandler)
 	http.HandleFunc("/health", healthHandler)
@@ -459,202 +274,4 @@ func main() {
 	if err := http.ListenAndServe(port, nil); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
-}
-
-func autocompleteHandler(w http.ResponseWriter, r *http.Request) {
-	startTime := time.Now()
-
-	// Set CORS headers
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Content-Type", "application/json")
-
-	// Get query parameter
-	query := r.URL.Query().Get("q")
-	if query == "" {
-		json.NewEncoder(w).Encode(AutocompleteResponse{
-			Query:   "",
-			Results: []StreetRecord{},
-			Count:   0,
-			Time:    time.Since(startTime).String(),
-		})
-		return
-	}
-
-	// Default limit
-	limit := 10
-
-	// Search
-	results := service.Search(query, limit)
-
-	// Build response
-	response := AutocompleteResponse{
-		Query:   query,
-		Results: results,
-		Count:   len(results),
-		Time:    time.Since(startTime).String(),
-	}
-
-	json.NewEncoder(w).Encode(response)
-}
-
-func citiesHandler(w http.ResponseWriter, r *http.Request) {
-	startTime := time.Now()
-
-	// Set CORS headers
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Content-Type", "application/json")
-
-	// Get query parameter
-	query := r.URL.Query().Get("q")
-
-	// Get filter parameters (0 means no filter)
-	woj, _ := strconv.Atoi(r.URL.Query().Get("woj"))
-	pow, _ := strconv.Atoi(r.URL.Query().Get("pow"))
-	gmi, _ := strconv.Atoi(r.URL.Query().Get("gmi"))
-
-	// Default limit
-	limit := 10
-
-	// Search with filters
-	results := service.SearchCities(query, woj, pow, gmi, limit)
-
-	// Build filters map for response
-	filters := make(map[string]int)
-	if woj > 0 {
-		filters["woj"] = woj
-	}
-	if pow > 0 {
-		filters["pow"] = pow
-	}
-	if gmi > 0 {
-		filters["gmi"] = gmi
-	}
-
-	// Build response
-	response := CityAutocompleteResponse{
-		Query:   query,
-		Filters: filters,
-		Results: results,
-		Count:   len(results),
-		Time:    time.Since(startTime).String(),
-	}
-
-	json.NewEncoder(w).Encode(response)
-}
-
-func streetGMIHandler(w http.ResponseWriter, r *http.Request) {
-	startTime := time.Now()
-
-	// Set CORS headers
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Content-Type", "application/json")
-
-	// Get street name parameter
-	streetName := r.URL.Query().Get("name")
-	if streetName == "" {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"error":   "missing 'name' parameter",
-			"results": []map[string]interface{}{},
-			"count":   0,
-			"time":    time.Since(startTime).String(),
-		})
-		return
-	}
-
-	// Get GMI codes for the exact street name
-	results := service.GetGMIForStreet(streetName)
-
-	// Build response
-	response := map[string]interface{}{
-		"street_name": streetName,
-		"results":     results,
-		"count":       len(results),
-		"time":        time.Since(startTime).String(),
-	}
-
-	json.NewEncoder(w).Encode(response)
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "ok",
-		"streets": fmt.Sprintf("%d", len(service.streets)),
-		"cities":  fmt.Sprintf("%d", len(service.cities)),
-	})
-}
-
-func rootHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html")
-	html := `<!DOCTYPE html>
-<html>
-<head>
-    <title>Street Autocomplete API</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
-        h1 { color: #333; }
-        .endpoint { background: #f4f4f4; padding: 10px; margin: 10px 0; border-radius: 5px; }
-        code { background: #e0e0e0; padding: 2px 5px; border-radius: 3px; }
-        input { padding: 10px; width: 300px; font-size: 16px; }
-        #results { margin-top: 20px; }
-        .result { padding: 8px; margin: 5px 0; background: #f9f9f9; border-left: 3px solid #4CAF50; }
-    </style>
-</head>
-<body>
-    <h1>Polish Street Autocomplete API</h1>
-    <p>Try the autocomplete:</p>
-    <input type="text" id="search" placeholder="Type street name..." onkeyup="search()">
-    <div id="results"></div>
-
-    <h2>API Endpoints</h2>
-    <div class="endpoint">
-        <strong>GET /streets?q={query}</strong><br>
-        Search for streets by name<br>
-        Example: <a href="/streets?q=Chopina">/streets?q=Chopina</a>
-    </div>
-    <div class="endpoint">
-        <strong>GET /streets/gmi?name={exact_street_name}</strong><br>
-        Get list of GMI codes where an exact street name exists<br>
-        Example: <a href="/streets/gmi?name=Sportowa">/streets/gmi?name=Sportowa</a>
-    </div>
-    <div class="endpoint">
-        <strong>GET /cities?q={query}&woj={woj}&pow={pow}&gmi={gmi}</strong><br>
-        Search for cities by name with optional filters<br>
-        Examples:<br>
-        - <a href="/cities?q=Warszawa">/cities?q=Warszawa</a><br>
-        - <a href="/cities?q=Krak&woj=12">/cities?q=Krak&woj=12</a> (filter by województwo)<br>
-        - <a href="/cities?woj=14&pow=32">/cities?woj=14&pow=32</a> (all cities in powiat)
-    </div>
-    <div class="endpoint">
-        <strong>GET /health</strong><br>
-        Example: <a href="/health">/health</a>
-    </div>
-
-    <script>
-        let timeout = null;
-        function search() {
-            clearTimeout(timeout);
-            const query = document.getElementById('search').value;
-
-            if (query.length < 2) {
-                document.getElementById('results').innerHTML = '';
-                return;
-            }
-
-            timeout = setTimeout(() => {
-                fetch('/streets?q=' + encodeURIComponent(query))
-                    .then(r => r.json())
-                    .then(data => {
-                        const html = data.results.map(r =>
-                            '<div class="result">' + r.full_name + '</div>'
-                        ).join('');
-                        document.getElementById('results').innerHTML =
-                            '<p>Found ' + data.count + ' results in ' + data.time + '</p>' + html;
-                    });
-            }, 200);
-        }
-    </script>
-</body>
-</html>`
-	w.Write([]byte(html))
 }

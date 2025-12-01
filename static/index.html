@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Street Autocomplete API</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        h1 { color: #333; }
+        .endpoint { background: #f4f4f4; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        code { background: #e0e0e0; padding: 2px 5px; border-radius: 3px; }
+        input { padding: 10px; width: 300px; font-size: 16px; }
+        #results { margin-top: 20px; }
+        .result { padding: 8px; margin: 5px 0; background: #f9f9f9; border-left: 3px solid #4CAF50; }
+    </style>
+</head>
+<body>
+    <h1>Polish Street Autocomplete API</h1>
+    <p>Try the autocomplete:</p>
+    <input type="text" id="search" placeholder="Type street name..." onkeyup="search()">
+    <div id="results"></div>
+
+    <h2>API Endpoints</h2>
+    <div class="endpoint">
+        <strong>GET /streets?q={query}</strong><br>
+        Search for streets by name<br>
+        Example: <a href="/streets?q=Chopina">/streets?q=Chopina</a>
+    </div>
+    <div class="endpoint">
+        <strong>GET /streets/gmi?name={exact_street_name}</strong><br>
+        Get list of GMI codes where an exact street name exists<br>
+        Example: <a href="/streets/gmi?name=Sportowa">/streets/gmi?name=Sportowa</a>
+    </div>
+    <div class="endpoint">
+        <strong>GET /cities?q={query}&woj={woj}&pow={pow}&gmi={gmi}</strong><br>
+        Search for cities by name with optional filters<br>
+        Examples:<br>
+        - <a href="/cities?q=Warszawa">/cities?q=Warszawa</a><br>
+        - <a href="/cities?q=Krak&woj=12">/cities?q=Krak&woj=12</a> (filter by województwo)<br>
+        - <a href="/cities?woj=14&pow=32">/cities?woj=14&pow=32</a> (all cities in powiat)
+    </div>
+    <div class="endpoint">
+        <strong>GET /health</strong><br>
+        Example: <a href="/health">/health</a>
+    </div>
+
+    <script>
+        let timeout = null;
+        function search() {
+            clearTimeout(timeout);
+            const query = document.getElementById('search').value;
+
+            if (query.length < 2) {
+                document.getElementById('results').innerHTML = '';
+                return;
+            }
+
+            timeout = setTimeout(() => {
+                fetch('/streets?q=' + encodeURIComponent(query))
+                    .then(r => r.json())
+                    .then(data => {
+                        const html = data.results.map(r =>
+                            '<div class="result">' + r.full_name + '</div>'
+                        ).join('');
+                        document.getElementById('results').innerHTML =
+                            '<p>Found ' + data.count + ' results in ' + data.time + '</p>' + html;
+                    });
+            }, 200);
+        }
+    </script>
+</body>
+</html>
