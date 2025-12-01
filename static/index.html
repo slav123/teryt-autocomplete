@@ -14,9 +14,14 @@
 </head>
 <body>
     <h1>Polish Street Autocomplete API</h1>
+    <p><a href="/demo" style="display: inline-block; padding: 10px 20px; background: #4CAF50; color: white; text-decoration: none; border-radius: 5px; margin-bottom: 20px;">Try HTMX Demo</a></p>
     <p>Try the autocomplete:</p>
     <input type="text" id="search" placeholder="Type street name..." onkeyup="search()">
     <div id="results"></div>
+
+    <p>Try the city autocomplete:</p>
+    <input type="text" id="searchCity" placeholder="Type city name..." onkeyup="searchCities()">
+    <div id="city-results"></div>
 
     <h2>API Endpoints</h2>
     <div class="endpoint">
@@ -61,6 +66,30 @@
                             '<div class="result">' + r.full_name + '</div>'
                         ).join('');
                         document.getElementById('results').innerHTML =
+                            '<p>Found ' + data.count + ' results in ' + data.time + '</p>' + html;
+                    });
+            }, 200);
+        }
+
+        let cityTimeout = null;
+        function searchCities() {
+            clearTimeout(cityTimeout);
+            const query = document.getElementById('searchCity').value;
+
+            if (query.length < 2) {
+                document.getElementById('city-results').innerHTML = '';
+                return;
+            }
+
+            cityTimeout = setTimeout(() => {
+                fetch('/cities?q=' + encodeURIComponent(query))
+                    .then(r => r.json())
+                    .then(data => {
+                        const uniqueNames = [...new Set(data.results.map(r => r.nazwa))];
+                        const html = uniqueNames.map(name =>
+                            '<div class="result">' + name + '</div>'
+                        ).join('');
+                        document.getElementById('city-results').innerHTML =
                             '<p>Found ' + data.count + ' results in ' + data.time + '</p>' + html;
                     });
             }, 200);

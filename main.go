@@ -264,10 +264,11 @@ func main() {
 	http.HandleFunc("/streets/gmi", streetGMIHandler)
 	http.HandleFunc("/cities", citiesHandler)
 	http.HandleFunc("/health", healthHandler)
+	http.HandleFunc("/demo", demoHandler)
 	http.HandleFunc("/", rootHandler)
 
 	// Start server
-	port := ":8080"
+	port := ":8081"
 	log.Printf("Starting server on http://localhost%s", port)
 	log.Printf("Try: http://localhost%s/streets?q=Chopina", port)
 
